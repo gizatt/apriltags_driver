@@ -235,25 +235,10 @@ class CameraListener {
 
             K = Eigen::Matrix3d::Identity();
 
-            // From $DRC_BASE/software/config/cubsystems/sensor_rig/sensor_rig.cfg:
-            //  asus{
-            //        rgb {
-            //            width = 640;
-            //            height = 480;
-            //
-            //            fx = 537.874;
-            //            fy = 537.953;
-            //            cx = 317.019;
-            //            cy = 242.859;
-            //        }
-            //        ...
-            //   }
-
-            //Thus:
-            K(0,0) = 537.874; // focal_length_x
-            K(1,1) = 537.953; // focal_length_y
-            K(0,2) = 317.019; // principal_x
-            K(1,2) = 242.859; // principal_y
+            K(0,0) = 528.01442863461716; // focal_length_x
+            K(1,1) = 528.01442863461716; // focal_length_y
+            K(0,2) = 320.0; // principal_x
+            K(1,2) = 267.0; // principal_y
 
         }
 
@@ -368,7 +353,7 @@ int main(int argc, char *argv[])
     getopt_add_bool(getopt, '2', "refine-pose", 0, "Spend more time trying to precisely localize tags");
     getopt_add_double(getopt, 's', "size", "0.1735", "Physical side-length of the tag (meters), overridded by config");
     getopt_add_double(getopt, 'c', "config", "", "Config file with sizes for particular tag types");
-    getopt_add_bool(getopt, '\0', "asus", 0, "Use asus kinect sensor if true, CAMERA->LEFT_CAMERA multisense if false");
+    getopt_add_bool(getopt, '\0', "asus", 1, "Use asus kinect sensor if true, CAMERA->LEFT_CAMERA multisense if false");
     
 
     if (!getopt_parse(getopt, argc, argv, 1) || getopt_get_bool(getopt, "help")) {
