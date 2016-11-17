@@ -306,9 +306,11 @@ class CameraListener {
         for (int i = 0; i < msg->n_images; ++i) {
           if (msg->image_types[i] == bot_core::images_t::LEFT) {
             leftImage = (bot_core::image_t*)(&msg->images[i]);
-            decoded_image = leftImage->pixelformat == leftImage->PIXEL_FORMAT_MJPEG ?
-                cv::imdecode(cv::Mat(leftImage->data), -1) :
+            if (leftImage->pixelformat == leftImage->PIXEL_FORMAT_MJPEG){
+                decoded_image = cv::imdecode(cv::Mat(leftImage->data), -1);
+            } else {
                 cv::Mat(leftImage->height, leftImage->width, CV_8UC3, leftImage->data.data());
+            }
            if (decoded_image.channels() > 1) {
                 cv::cvtColor(decoded_image, decoded_image, CV_RGB2GRAY);
            }
@@ -318,9 +320,12 @@ class CameraListener {
     }
     
     image_u8_t *fromCvMat(const cv::Mat & img) { 
-        image_u8_t *image_u8 = image_u8_create_alignment(img.cols, img.rows, img.step);
-        int size = img.total() * img.elemSize();
-        memcpy(image_u8->buf, img.data, size * sizeof(uint8_t));
+        // Intentionally allow the apriltag driver to create an image with whatever stride it wants
+        // It makes this decision internally and has bugs if this is not respected... -gizatt
+        image_u8_t *image_u8 = image_u8_create(img.cols, img.rows);
+        for (int i=0; i<img.rows; i++){
+            memcpy(image_u8->buf + i*image_u8->stride, img.data + i*img.cols, img.cols*sizeof(uint8_t));
+        }
         return image_u8;
     }
 
