@@ -12,18 +12,16 @@
 #include <AprilTags/common/zarray.h>
 #include <AprilTags/common/getopt.h>
 
-#include <drc_utils/LcmWrapper.hpp>
-#include <drc_utils/BotWrapper.hpp>
 #include <lcm/lcm-cpp.hpp>
+#include "LcmWrapper.hpp"
 
 #include <lcmtypes/bot_core.hpp>
 #include <lcmtypes/bot_core/images_t.hpp>
 #include <lcmtypes/bot_core/image_t.hpp>
 
-
 #include <bot_core/camtrans.h>
 #include <bot_param/param_util.h>
-#include <bot_frames_cpp/bot_frames_cpp.hpp>
+//#include <bot_frames_cpp/bot_frames_cpp.hpp>
 #include <lcmtypes/bot_core/rigid_transform_t.hpp>
 
 #include <vector>
@@ -32,7 +30,7 @@
 
 #include <Eigen/Dense>
 
-#include "yaml-cpp/yaml.h"
+#include <yaml-cpp/yaml.h>
 
 struct TagMatch {
     int id; 
@@ -209,20 +207,22 @@ class CameraListener {
 
     bool setup(bool show_window) {
 
-        mBotWrapper.reset(new drc::BotWrapper());
+        mLcmWrapper.reset(new drc::LcmWrapper());
+        mLcmWrapper->get()->subscribe("CAMERA", &CameraListener::onImagesMessage, this);
+        mLcmWrapper->get()->subscribe("OPENNI_FRAME", &CameraListener::onImagesMessage, this);
+        mLcmWrapper->get()->subscribe("KINECT_RGB", &CameraListener::onImageMessage, this);
 
-        while (!mBotWrapper->getBotParam()) {
-            std::cout << "Re-trying ... " << std::endl;
-            mBotWrapper->setDefaults();
-        }
-
-        mLcmWrapper.reset(new drc::LcmWrapper(mBotWrapper->getLcm()));
-        mLcmWrapper->get()->subscribe("CAMERA", &CameraListener::onCamera, this);
 
         if (!useAsus) { // Using multisense LEFT_CAMERA
 
+            BotParam* botParam = NULL;
+            while (!botParam)
+            {
+              bot_param_get_global(mLcmWrapper->getC(), 0);
+            }
+
             BotCamTrans* mCamTransLeft;
-            mCamTransLeft = bot_param_get_new_camtrans(mBotWrapper->getBotParam(),"CAMERA_LEFT");
+            mCamTransLeft = bot_param_get_new_camtrans(botParam,"CAMERA_LEFT");
             
             K = Eigen::Matrix3d::Identity();
 
@@ -254,12 +254,11 @@ class CameraListener {
         mLcmWrapper->startHandleThread(true);
     }
 
-    void onCamera(const lcm::ReceiveBuffer* buffer, const std::string& channel,
-                const bot_core::images_t* msg) {
+    void onImage(const bot_core::image_t* msg) {
         cv::Mat image;
         decodeImage(msg, image);
         image_u8_t *image_u8 = fromCvMat(image);
-        
+
         std::vector<TagMatch> tags = mDetector->detectTags(image_u8);
         cv::cvtColor(image, image, CV_GRAY2RGB);
         for (int i = 0; i < tags.size(); i++) { 
@@ -301,24 +300,40 @@ class CameraListener {
         image_u8_destroy(image_u8);
     }
 
-    void decodeImage(const bot_core::images_t* msg, cv::Mat & decoded_image) {
-        bot_core::image_t* leftImage = NULL;
-        for (int i = 0; i < msg->n_images; ++i) {
-          if (msg->image_types[i] == bot_core::images_t::LEFT) {
-            leftImage = (bot_core::image_t*)(&msg->images[i]);
-            if (leftImage->pixelformat == leftImage->PIXEL_FORMAT_MJPEG){
-                decoded_image = cv::imdecode(cv::Mat(leftImage->data), -1);
-            } else {
-                cv::Mat(leftImage->height, leftImage->width, CV_8UC3, leftImage->data.data());
-            }
-           if (decoded_image.channels() > 1) {
-                cv::cvtColor(decoded_image, decoded_image, CV_RGB2GRAY);
-           }
-                break;
-          }
+    void onImagesMessage(const lcm::ReceiveBuffer* buffer,
+                         const std::string& channel,
+                         const bot_core::images_t* msg) {
+      bot_core::image_t* leftImage = NULL;
+      for (int i = 0; i < msg->n_images; ++i) {
+        if (msg->image_types[i] == bot_core::images_t::LEFT) {
+          leftImage = (bot_core::image_t*)(&msg->images[i]);
+          break;
         }
+      }
+
+      if (leftImage) {
+        this->onImage(leftImage);
+      }
+
     }
-    
+
+    void onImageMessage(const lcm::ReceiveBuffer* buffer,
+                         const std::string& channel,
+                         const bot_core::image_t* msg) {
+      this->onImage(msg);
+    }
+
+    void decodeImage(const bot_core::image_t* msg, cv::Mat & decoded_image) {
+      if (msg->pixelformat == msg->PIXEL_FORMAT_MJPEG){
+        decoded_image = cv::imdecode(cv::Mat(msg->data), -1);
+      } else {
+        decoded_image = cv::Mat(msg->height, msg->width, CV_8UC3, const_cast<unsigned char*>(msg->data.data()));
+      }
+      if (decoded_image.channels() > 1) {
+        cv::cvtColor(decoded_image, decoded_image, CV_RGB2GRAY);
+      }
+    }
+
     image_u8_t *fromCvMat(const cv::Mat & img) { 
         // Intentionally allow the apriltag driver to create an image with whatever stride it wants
         // It makes this decision internally and has bugs if this is not respected... -gizatt
@@ -335,7 +350,6 @@ class CameraListener {
     bool quiet;
     AprilTagDetector *mDetector;
     drc::LcmWrapper::Ptr mLcmWrapper;
-    drc::BotWrapper::Ptr mBotWrapper;
     Eigen::Matrix3d K;
 };
 
