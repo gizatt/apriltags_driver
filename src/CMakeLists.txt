@@ -9,11 +9,15 @@ pods_use_pkg_config_packages(${APP_NAME}
   apriltags
   bot2-core
   bot2-param-client
+  lcmtypes_bot2-core
   yaml-cpp
   eigen3
 )
 
 find_package(OpenCV REQUIRED)
 target_link_libraries(${APP_NAME} ${OpenCV_LIBS})
+
+find_package(Threads REQUIRED)
+target_link_libraries(${APP_NAME} ${CMAKE_THREAD_LIBS_INIT})
 
 pods_install_executables(${APP_NAME})
