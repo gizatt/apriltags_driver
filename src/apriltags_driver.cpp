@@ -15,7 +15,6 @@
 #include <lcm/lcm-cpp.hpp>
 #include "LcmWrapper.hpp"
 
-#include <lcmtypes/bot_core.hpp>
 #include <lcmtypes/bot_core/images_t.hpp>
 #include <lcmtypes/bot_core/image_t.hpp>
 
