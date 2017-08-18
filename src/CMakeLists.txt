@@ -1,5 +1,17 @@
 set(APP_NAME drc-apriltags-driver)
 
+
+# Copied and modified from Modules/FindPkgConfig.cmake in CMake 3.6.0 to
+# support older versions of CMake.
+function(add_library_and_include_dir _prefix)
+  find_library(_lib NAMES ${_prefix})
+  link_libraries(${_lib})
+  if(${_prefix}_INCLUDE_DIRS)
+      include_directories(${${_prefix}_INCLUDE_DIRS})
+  endif()
+endfunction()
+
+
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
@@ -13,9 +25,12 @@ else()
   # Find glib-2.0 and gthread-2.0 which are not automatically found by CMake.
   # gthread-2.0 finds glib-2.0
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(gthread-2.0 gthread-2.0 IMPORTED_TARGET)
+  pkg_check_modules(gthread-2.0 gthread-2.0)
   if(gthread-2.0_FOUND)
-    list(APPEND libbot_LIBRARIES PkgConfig::gthread-2.0)
+    foreach(var ${gthread-2.0_LIBRARIES})
+      add_library_and_include_dir(gthread-2.0)
+    endforeach()
+    list(APPEND libbot_LIBRARIES gthread-2.0)
   else()
     message(FATAL_ERROR "libbot requires gthread-2.0 and it was not found.")
   endif()
