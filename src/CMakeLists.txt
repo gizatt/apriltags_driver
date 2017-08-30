@@ -43,7 +43,10 @@ find_package(Eigen3 QUIET)
 if(NOT Eigen3_FOUND)
   set(eigen3_pkg eigen3)
 endif()
-target_link_libraries(${APP_NAME} ${Eigen3_LIBRARIES} ${yaml-cpp_LIBRARIES} ${libbot_LIBRARIES})
+include_directories(${EIGEN3_INCLUDE_DIRS})
+# ${yaml-cpp_LIBRARIES} is empty on my build (U14.04 w/ system-installed yaml-cpp-dev) - gizatt
+#target_link_libraries(${APP_NAME} ${Eigen3_LIBRARIES} ${yaml-cpp_LIBRARIES} ${libbot_LIBRARIES})
+target_link_libraries(${APP_NAME} ${Eigen3_LIBRARIES} yaml-cpp ${libbot_LIBRARIES})
 
 pods_use_pkg_config_packages(${APP_NAME}
   apriltags
